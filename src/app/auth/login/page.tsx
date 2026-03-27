@@ -69,12 +69,16 @@ export default function LoginPage() {
       }
       router.push('/dashboard');
     } catch (error: any) {
-      console.error(error);
+      console.error("Auth Error:", error);
       let message = error.message || "Authentication failed.";
-      if (error.code === 'auth/invalid-api-key') {
-        message = "Firebase API Key is missing or invalid. Please check your .env file.";
+      
+      // Handle Firebase specific invalid API key errors
+      if (error.code === 'auth/api-key-not-valid' || error.code === 'auth/invalid-api-key') {
+        message = "Firebase configuration is missing or invalid. Please ensure your project is properly connected in the Firebase Console and environment variables are set.";
       } else if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered.";
+        message = "This email is already registered. Try logging in instead.";
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        message = "Invalid email or password.";
       }
       
       toast({ 

@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth, db } from '@/lib/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { User } from '@/lib/types';
@@ -15,27 +15,33 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const auth = useAuth();
+  const db = useFirestore();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Fetch additional profile data from Firestore
-        const docRef = doc(db, "users", firebaseUser.uid);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          setUser(docSnap.data() as User);
-        } else {
-          // Fallback if profile doesn't exist yet
-          const fallbackUser: User = {
-            id: firebaseUser.uid,
-            name: firebaseUser.email?.split('@')[0] || "User",
-            email: firebaseUser.email || "",
-            role: 'student'
-          };
-          setUser(fallbackUser);
+        try {
+          // Fetch additional profile data from Firestore
+          const docRef = doc(db, "users", firebaseUser.uid);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            setUser(docSnap.data() as User);
+          } else {
+            // Fallback if profile doesn't exist yet
+            const fallbackUser: User = {
+              id: firebaseUser.uid,
+              name: firebaseUser.email?.split('@')[0] || "User",
+              email: firebaseUser.email || "",
+              role: 'student'
+            };
+            setUser(fallbackUser);
+          }
+        } catch (err) {
+          console.error("Error fetching user profile:", err);
         }
       } else {
         router.push('/auth/login');
@@ -44,7 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, [auth, db, router]);
 
   if (loading) {
     return (

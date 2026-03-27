@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
-import { auth, db } from '@/lib/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { User } from '@/lib/types';
@@ -10,10 +11,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Github, Mail, Building, MapPin, Edit2, ShieldCheck, GraduationCap, Link2, Loader2 } from 'lucide-react';
+import { Github, Mail, Edit2, Link2, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
+  const auth = useAuth();
+  const db = useFirestore();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -22,13 +25,17 @@ export default function ProfilePage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
-        const docSnap = await getDoc(doc(db, "users", fbUser.uid));
-        if (docSnap.exists()) setUser(docSnap.data() as User);
+        try {
+          const docSnap = await getDoc(doc(db, "users", fbUser.uid));
+          if (docSnap.exists()) setUser(docSnap.data() as User);
+        } catch (err) {
+          console.error("Error loading profile:", err);
+        }
       }
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [auth, db]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
