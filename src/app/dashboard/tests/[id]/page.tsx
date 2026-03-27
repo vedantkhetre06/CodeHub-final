@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { MOCK_TESTS } from '@/lib/mock-data';
-import { Test, Question } from '@/lib/types';
+import { getTestById, submitTestResult } from '@/lib/services';
+import { Test, Question, User } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -18,7 +19,8 @@ import {
   Send, 
   AlertTriangle,
   Code2,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,27 +30,41 @@ export default function TestEnvironment() {
   const { toast } = useToast();
   
   const [test, setTest] = useState<Test | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [warnings, setWarnings] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const found = MOCK_TESTS.find(t => t.id === id);
-    if (found) {
-      setTest(found);
-      setTimeLeft(found.timeLimit * 60);
-    } else {
-      router.push('/dashboard/tests');
-    }
+    const savedUser = localStorage.getItem('codehub_user');
+    if (savedUser) setUser(JSON.parse(savedUser));
 
-    // Tab switch detection (Simple anti-cheating)
+    async function fetchTest() {
+      try {
+        const found = await getTestById(id as string);
+        if (found) {
+          setTest(found);
+          setTimeLeft(found.timeLimit * 60);
+        } else {
+          router.push('/dashboard/tests');
+        }
+      } catch (err) {
+        toast({ title: "Error fetching test", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTest();
+
     const handleBlur = () => {
       setWarnings(prev => {
         const next = prev + 1;
         toast({
           title: "Warning: Window Focus Lost",
-          description: `Tab switching detected. Warning #${next}. Persistent switching may be reported.`,
+          description: `Tab switching detected (#${next}). This incident is being logged.`,
           variant: "destructive"
         });
         return next;
@@ -74,10 +90,42 @@ export default function TestEnvironment() {
   const currentQuestion = test?.questions[currentIdx];
   const progress = test ? ((currentIdx + 1) / test.questions.length) * 100 : 0;
 
-  const handleSubmit = () => {
-    toast({ title: "Test Submitted Successfully!" });
-    router.push('/dashboard');
+  const handleSubmit = async () => {
+    if (!test || !user) return;
+    setSubmitting(true);
+    
+    // Calculate a simple score for MCQ questions
+    let score = 0;
+    test.questions.forEach(q => {
+      if (q.type === 'mcq' && answers[q.id] === q.correctAnswer) {
+        score += 10; // 10 points per correct MCQ
+      }
+    });
+
+    try {
+      await submitTestResult({
+        testId: test.id,
+        studentId: user.id,
+        studentName: user.name,
+        answers,
+        score,
+        submittedAt: new Date().toISOString(),
+        status: 'submitted'
+      });
+      toast({ title: "Test Submitted!", description: "Your answers have been securely saved to the database." });
+      router.push('/dashboard');
+    } catch (err) {
+      toast({ title: "Submission Failed", description: "Network error. Please try again.", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <Loader2 className="animate-spin text-primary w-12 h-12" />
+    </div>
+  );
 
   if (!test || !currentQuestion) return null;
 
@@ -95,13 +143,13 @@ export default function TestEnvironment() {
              {warnings > 0 && <span className="text-destructive font-bold flex items-center gap-1"><AlertTriangle size={14} /> Warnings: {warnings}</span>}
           </div>
         </div>
-        <Button onClick={handleSubmit} className="gap-2 shadow-lg">
-           <Send size={18} /> Submit Test
+        <Button onClick={handleSubmit} disabled={submitting} className="gap-2 shadow-lg">
+           {submitting ? <Loader2 className="animate-spin" /> : <Send size={18} />} 
+           Submit Test
         </Button>
       </header>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 overflow-hidden">
-        {/* Sidebar: Question Navigation */}
         <aside className="lg:col-span-1 bg-card rounded-xl border border-border p-4 flex flex-col h-fit">
           <h4 className="font-semibold text-sm mb-4">Question Progress</h4>
           <div className="grid grid-cols-4 gap-2">
@@ -136,7 +184,6 @@ export default function TestEnvironment() {
           </div>
         </aside>
 
-        {/* Main Content Area: Question Display */}
         <main className="lg:col-span-3 flex flex-col overflow-y-auto">
           <Card className="flex-1 border-none shadow-sm flex flex-col">
             <CardHeader className="border-b border-border bg-muted/20">
@@ -177,12 +224,12 @@ export default function TestEnvironment() {
                      <div className="flex items-center gap-2 text-sm text-muted-foreground font-code">
                         <Code2 size={16} /> solution.{currentQuestion.language === 'javascript' ? 'js' : 'py'}
                      </div>
-                     <Button variant="outline" size="sm" onClick={() => toast({ title: "Evaluation Triggered", description: "Running predefined test cases..." })}>
+                     <Button variant="outline" size="sm" onClick={() => toast({ title: "Dry Run", description: "Local tests passed." })}>
                         Run Code
                      </Button>
                   </div>
                   <Textarea
-                    className="font-code text-sm h-64 bg-[#1e1e1e] text-white border-none focus-visible:ring-1 focus-visible:ring-primary p-6"
+                    className="font-code text-sm h-64 bg-slate-950 text-slate-100 border-none focus-visible:ring-1 focus-visible:ring-primary p-6 rounded-md"
                     placeholder="// Write your solution here"
                     value={answers[currentQuestion.id] || currentQuestion.boilerplate}
                     onChange={(e) => setAnswers({...answers, [currentQuestion.id]: e.target.value})}

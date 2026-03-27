@@ -1,15 +1,17 @@
+
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MOCK_SUBJECTS } from '@/lib/mock-data';
+import { createTest } from '@/lib/services';
+import { User } from '@/lib/types';
 import { generateMCQQuestions } from '@/ai/flows/generate-mcq-questions';
 import { aiAssistedCodingSetup } from '@/ai/flows/ai-assisted-coding-setup';
 import { Plus, Trash2, Sparkles, Loader2, Save } from 'lucide-react';
@@ -19,6 +21,7 @@ export default function NewTestPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   
   const [testData, setTestData] = useState({
     title: '',
@@ -27,6 +30,11 @@ export default function NewTestPage() {
     timeLimit: '60',
     questions: [] as any[]
   });
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('codehub_user');
+    if (savedUser) setUser(JSON.parse(savedUser));
+  }, []);
 
   const handleAddQuestion = (type: 'mcq' | 'coding') => {
     const newQuestion = type === 'mcq' 
@@ -101,17 +109,39 @@ export default function NewTestPage() {
     }
   };
 
-  const handleSave = () => {
-    toast({ title: "Test saved successfully!" });
-    router.push('/dashboard');
+  const handleSave = async () => {
+    if (!testData.title || !testData.subject || testData.questions.length === 0) {
+      toast({ title: "Please fill all required fields", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await createTest({
+        title: testData.title,
+        description: testData.description,
+        subject: testData.subject,
+        timeLimit: parseInt(testData.timeLimit),
+        questions: testData.questions,
+        createdBy: user?.id || 'unknown',
+        createdAt: new Date().toISOString()
+      });
+      toast({ title: "Test published to Firestore!" });
+      router.push('/dashboard/teacher/tests');
+    } catch (error) {
+      toast({ title: "Error saving test", description: "Please check your database permissions.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-headline font-bold">Create New Test</h2>
-        <Button onClick={handleSave} className="gap-2">
-           <Save size={18} /> Save Test
+        <Button onClick={handleSave} disabled={loading} className="gap-2">
+           {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} 
+           Save Test
         </Button>
       </div>
 

@@ -36,6 +36,12 @@ export async function getAllTests(): Promise<Test[]> {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Test));
 }
 
+export async function getTestById(id: string): Promise<Test | null> {
+  const docRef = doc(db, "tests", id);
+  const docSnap = await getDoc(docRef);
+  return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Test) : null;
+}
+
 export async function createTest(test: Omit<Test, 'id'>) {
   return await addDoc(collection(db, "tests"), {
     ...test,
@@ -63,7 +69,13 @@ export async function submitTestResult(submission: Omit<Submission, 'id'>) {
 }
 
 export async function getSubmissionsByStudent(studentId: string): Promise<Submission[]> {
-  const q = query(collection(db, "submissions"), where("studentId", "==", studentId));
+  const q = query(collection(db, "submissions"), where("studentId", "==", studentId), orderBy("submittedAt", "desc"));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Submission));
+}
+
+export async function getSubmissionsByTest(testId: string): Promise<Submission[]> {
+  const q = query(collection(db, "submissions"), where("testId", "==", testId), orderBy("submittedAt", "desc"));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Submission));
 }
