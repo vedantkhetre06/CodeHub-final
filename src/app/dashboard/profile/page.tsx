@@ -2,53 +2,42 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useAuth, useFirestore } from '@/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { User } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Github, Mail, Edit2, Link2, Loader2 } from 'lucide-react';
+import { Github, Edit2, Link2, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
-  const auth = useAuth();
-  const db = useFirestore();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        try {
-          const docSnap = await getDoc(doc(db, "users", fbUser.uid));
-          if (docSnap.exists()) setUser(docSnap.data() as User);
-        } catch (err) {
-          console.error("Error loading profile:", err);
-        }
-      }
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [auth, db]);
+    // Demo Mode: Use localStorage
+    const savedUser = localStorage.getItem('codehub_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
+  }, []);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setSaving(true);
-    try {
-      await updateDoc(doc(db, "users", user.id), { ...user });
-      toast({ title: "Profile Updated", description: "Your changes have been saved to Firestore." });
-    } catch (err) {
-      toast({ title: "Update Failed", variant: "destructive" });
-    } finally {
+    
+    // Demo Mode: Update localStorage
+    localStorage.setItem('codehub_user', JSON.stringify(user));
+    
+    setTimeout(() => {
+      toast({ title: "Profile Updated (Demo)", description: "Your changes have been saved to local session storage." });
       setSaving(false);
-    }
+    }, 500);
   };
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;

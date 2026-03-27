@@ -3,9 +3,6 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Role, User } from '@/lib/types';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,8 +14,6 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const router = useRouter();
-  const auth = useAuth();
-  const db = useFirestore();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const initialRole = (searchParams.get('role') as Role) || 'student';
@@ -40,57 +35,33 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      if (isRegistering) {
-        // Registration Flow
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const newUser: User = {
-          id: userCredential.user.uid,
-          name: name || email.split('@')[0],
-          email: email,
-          role: role,
-          branch: role === 'student' ? 'Computer Science' : undefined,
-          year: role === 'student' ? '1st' : undefined
-        };
-        await setDoc(doc(db, "users", userCredential.user.uid), newUser);
-        localStorage.setItem('codehub_user', JSON.stringify(newUser));
-        toast({ title: "Account Created!", description: `Welcome to CodeHub, ${newUser.name}` });
-      } else {
-        // Login Flow
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data() as User;
-          localStorage.setItem('codehub_user', JSON.stringify(userData));
-          toast({ title: "Welcome back!", description: `Logged in as ${userData.name}` });
-        } else {
-          // Fallback if profile doesn't exist (e.g. manual auth creation)
-          const fallbackUser: User = {
-            id: userCredential.user.uid,
-            name: email.split('@')[0],
-            email: email,
-            role: role
-          };
-          await setDoc(doc(db, "users", userCredential.user.uid), fallbackUser);
-          localStorage.setItem('codehub_user', JSON.stringify(fallbackUser));
-        }
-      }
-      router.push('/dashboard');
-    } catch (error: any) {
-      console.error("Auth Error:", error);
-      let message = error.message || "Authentication failed.";
+      // Bypassing real Firebase Auth for Demo Mode
+      // We generate a unique ID and save to localStorage
+      const mockUid = Math.random().toString(36).substring(7);
       
-      if (error.code === 'auth/api-key-not-valid' || error.code === 'auth/invalid-api-key') {
-        message = "Firebase configuration error. Please ensure environment variables are correctly set in the project.";
-      } else if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered. Try logging in instead.";
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        message = "Invalid email or password.";
-      }
+      const userData: User = {
+        id: mockUid,
+        name: name || email.split('@')[0],
+        email: email,
+        role: role,
+        branch: role === 'student' ? 'Computer Science' : undefined,
+        year: role === 'student' ? '1st' : undefined,
+        github: '',
+        leetcode: ''
+      };
+
+      localStorage.setItem('codehub_user', JSON.stringify(userData));
       
       toast({ 
-        title: isRegistering ? "Registration Error" : "Login Error", 
-        description: message,
+        title: isRegistering ? "Account Created (Demo Mode)" : "Logged In (Demo Mode)", 
+        description: `Welcome to CodeHub, ${userData.name}` 
+      });
+
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({ 
+        title: "Auth Error", 
+        description: "Something went wrong during local login simulation.",
         variant: "destructive"
       });
     } finally {

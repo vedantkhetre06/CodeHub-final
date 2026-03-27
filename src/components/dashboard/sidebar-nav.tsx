@@ -4,15 +4,11 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { Role } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/firebase';
-import { signOut } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import { 
   LayoutDashboard, 
   FileText, 
   BookOpen, 
-  Users, 
-  Settings, 
   LogOut, 
   Bell, 
   GraduationCap,
@@ -26,7 +22,8 @@ import {
   Trophy,
   CalendarDays,
   Bug,
-  Lock
+  Lock,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -68,7 +65,6 @@ const NAV_ITEMS: NavItem[] = [
 export function SidebarNav({ role }: { role: Role }) {
   const pathname = usePathname();
   const router = useRouter();
-  const auth = useAuth();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -91,14 +87,10 @@ export function SidebarNav({ role }: { role: Role }) {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      localStorage.removeItem('codehub_user');
-      router.push('/');
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
+  const handleLogout = () => {
+    // Demo Mode: Just clear localStorage and redirect
+    localStorage.removeItem('codehub_user');
+    router.push('/');
   };
 
   const filteredItems = NAV_ITEMS.filter(item => item.roles.includes(role));

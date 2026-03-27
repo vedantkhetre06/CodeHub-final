@@ -3,54 +3,33 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, useFirestore } from '@/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import { User } from '@/lib/types';
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
-import { GraduationCap, Menu, Bell, User as UserIcon } from 'lucide-react';
+import { Menu, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const auth = useAuth();
-  const db = useFirestore();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          // Fetch additional profile data from Firestore
-          const docRef = doc(db, "users", firebaseUser.uid);
-          const docSnap = await getDoc(docRef);
-          
-          if (docSnap.exists()) {
-            setUser(docSnap.data() as User);
-          } else {
-            // Fallback if profile doesn't exist yet
-            const fallbackUser: User = {
-              id: firebaseUser.uid,
-              name: firebaseUser.email?.split('@')[0] || "User",
-              email: firebaseUser.email || "",
-              role: 'student'
-            };
-            setUser(fallbackUser);
-          }
-        } catch (err) {
-          console.error("Error fetching user profile:", err);
-        }
-      } else {
+    // Demo Mode: Check localStorage for the session
+    const savedUser = localStorage.getItem('codehub_user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (err) {
+        console.error("Error parsing user from storage:", err);
         router.push('/auth/login');
       }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [auth, db, router]);
+    } else {
+      router.push('/auth/login');
+    }
+    setLoading(false);
+  }, [router]);
 
   if (loading) {
     return (
