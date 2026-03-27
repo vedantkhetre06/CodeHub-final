@@ -1,9 +1,10 @@
+
 "use client";
 
 import { usePathname, useRouter } from 'next/navigation';
 import { Role } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { auth } from '@/lib/firebase';
+import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import { 
@@ -67,6 +68,7 @@ const NAV_ITEMS: NavItem[] = [
 export function SidebarNav({ role }: { role: Role }) {
   const pathname = usePathname();
   const router = useRouter();
+  const auth = useAuth();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -90,9 +92,13 @@ export function SidebarNav({ role }: { role: Role }) {
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
-    localStorage.removeItem('codehub_user');
-    router.push('/');
+    try {
+      await signOut(auth);
+      localStorage.removeItem('codehub_user');
+      router.push('/');
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
   };
 
   const filteredItems = NAV_ITEMS.filter(item => item.roles.includes(role));

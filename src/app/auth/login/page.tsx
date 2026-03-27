@@ -32,10 +32,16 @@ export default function LoginPage() {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) {
+      toast({ title: "Input Required", description: "Please enter both email and password.", variant: "destructive" });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
       if (isRegistering) {
+        // Registration Flow
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const newUser: User = {
           id: userCredential.user.uid,
@@ -49,6 +55,7 @@ export default function LoginPage() {
         localStorage.setItem('codehub_user', JSON.stringify(newUser));
         toast({ title: "Account Created!", description: `Welcome to CodeHub, ${newUser.name}` });
       } else {
+        // Login Flow
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
         
@@ -57,6 +64,7 @@ export default function LoginPage() {
           localStorage.setItem('codehub_user', JSON.stringify(userData));
           toast({ title: "Welcome back!", description: `Logged in as ${userData.name}` });
         } else {
+          // Fallback if profile doesn't exist (e.g. manual auth creation)
           const fallbackUser: User = {
             id: userCredential.user.uid,
             name: email.split('@')[0],
@@ -72,9 +80,8 @@ export default function LoginPage() {
       console.error("Auth Error:", error);
       let message = error.message || "Authentication failed.";
       
-      // Handle Firebase specific invalid API key errors
       if (error.code === 'auth/api-key-not-valid' || error.code === 'auth/invalid-api-key') {
-        message = "Firebase configuration is missing or invalid. Please ensure your project is properly connected in the Firebase Console and environment variables are set.";
+        message = "Firebase configuration error. Please ensure environment variables are correctly set in the project.";
       } else if (error.code === 'auth/email-already-in-use') {
         message = "This email is already registered. Try logging in instead.";
       } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
@@ -130,7 +137,7 @@ export default function LoginPage() {
               <Input 
                 id="email" 
                 type="email" 
-                placeholder="name@university.edu" 
+                placeholder="user@example.com" 
                 required 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
