@@ -43,7 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { title: 'Collaboration', href: '/dashboard/collaborative', icon: Users2, roles: ['student'] },
   { title: 'Aptitude Prep', href: '/dashboard/aptitude', icon: Trophy, roles: ['student'] },
   { title: 'Communications', href: '/dashboard/chat', icon: MessageSquare, roles: ['student', 'teacher'] },
-  { title: 'Campus Events', href: '/dashboard/events', icon: CalendarDays, roles: ['student', 'admin'] },
+  { title: 'Nearby Events', href: '/dashboard/events', icon: CalendarDays, roles: ['student', 'admin'] },
   { title: 'Resources', href: '/dashboard/resources', icon: BookOpen, roles: ['student'] },
   
   // Teacher items
