@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -13,8 +12,6 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -24,10 +21,10 @@ import {
   TrendingUp, 
   Award, 
   AlertTriangle, 
-  ArrowDownRight, 
   FileSpreadsheet, 
-  Download,
-  Loader2
+  Loader2,
+  Users,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -74,12 +71,11 @@ export default function AnalyticsPage() {
       setIsExporting(false);
       toast({
         title: "Success!",
-        description: "Student records exported to cloud storage.",
+        description: "Student records exported to cloud storage/spreadsheet.",
       });
     }, 1500);
   };
 
-  // Process data for charts
   const scoreDistribution = [
     { name: '0-20', count: submissions.filter(s => (s.score || 0) <= 20).length },
     { name: '21-40', count: submissions.filter(s => (s.score || 0) > 20 && (s.score || 0) <= 40).length },
@@ -88,13 +84,16 @@ export default function AnalyticsPage() {
     { name: '81-100', count: submissions.filter(s => (s.score || 0) > 80).length },
   ];
 
+  const attendanceData = [
+    { name: 'Appeared', value: submissions.length },
+    { name: 'Absent', value: Math.max(0, 150 - submissions.length) } // Mock class size 150
+  ];
+
   const avgScore = submissions.length > 0 
     ? (submissions.reduce((acc, s) => acc + (s.score || 0), 0) / submissions.length).toFixed(1)
     : "0";
 
-  const highestScore = submissions.length > 0 
-    ? Math.max(...submissions.map(s => s.score || 0))
-    : 0;
+  const cheatingCount = submissions.filter(s => s.cheatingDetected).length;
 
   if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto w-8 h-8 text-primary" /></div>;
 
@@ -102,8 +101,8 @@ export default function AnalyticsPage() {
     <div className="space-y-8 pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-headline font-bold">Performance Analytics</h2>
-          <p className="text-muted-foreground">Insights from live Firestore test submissions.</p>
+          <h2 className="text-3xl font-headline font-bold">Report Analysis</h2>
+          <p className="text-muted-foreground">Comprehensive student performance insights.</p>
         </div>
         <div className="flex gap-2">
           <Select value={selectedTestId} onValueChange={setSelectedTestId}>
@@ -116,7 +115,7 @@ export default function AnalyticsPage() {
           </Select>
           <Button variant="secondary" className="gap-2" onClick={handleExport} disabled={isExporting}>
             {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-            Export
+            Upload to Spreadsheet
           </Button>
         </div>
       </div>
@@ -129,37 +128,33 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{avgScore}</div>
-            <p className="text-xs text-muted-foreground">Across {submissions.length} students</p>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Highest</CardTitle>
-            <Award className="w-4 h-4 text-primary" />
+            <CardTitle className="text-sm font-medium">Attendance</CardTitle>
+            <Users className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{highestScore}</div>
-            <p className="text-xs text-muted-foreground">Top performance recorded</p>
+            <div className="text-2xl font-bold">{submissions.length} / 150</div>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Submissions</CardTitle>
-            <ArrowDownRight className="w-4 h-4 text-secondary" />
+            <CardTitle className="text-sm font-medium">Top Score</CardTitle>
+            <Award className="w-4 h-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{submissions.length}</div>
-            <p className="text-xs text-muted-foreground">Total attempts</p>
+            <div className="text-2xl font-bold">{submissions.length > 0 ? Math.max(...submissions.map(s => s.score || 0)) : 0}</div>
           </CardContent>
         </Card>
-        <Card className="border-none shadow-sm bg-destructive/5 border-destructive/10">
+        <Card className="border-none shadow-sm bg-destructive/5">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Risk Flags</CardTitle>
+            <CardTitle className="text-sm font-medium">Cheating Flags</CardTitle>
             <AlertTriangle className="w-4 h-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">Low</div>
-            <p className="text-xs text-muted-foreground">Integrity checks pass</p>
+            <div className="text-2xl font-bold text-destructive">{cheatingCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -168,7 +163,6 @@ export default function AnalyticsPage() {
         <Card className="border-none shadow-sm">
           <CardHeader>
             <CardTitle className="font-headline">Score Distribution</CardTitle>
-            <CardDescription>Live data from {submissions.length} submissions</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -176,8 +170,8 @@ export default function AnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" />
                 <YAxis />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                <Bar dataKey="count" fill="#2989CC" radius={[4, 4, 0, 0]} name="Students" />
+                <Tooltip />
+                <Bar dataKey="count" fill="#2989CC" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -185,34 +179,18 @@ export default function AnalyticsPage() {
 
         <Card className="border-none shadow-sm">
           <CardHeader>
-            <CardTitle className="font-headline">Recent Results</CardTitle>
+            <CardTitle className="font-headline">Appearance Ratio</CardTitle>
           </CardHeader>
-          <CardContent>
-             <div className="rounded-md border border-border overflow-hidden">
-               <table className="w-full text-sm">
-                 <thead className="bg-muted/50 border-b border-border">
-                   <tr>
-                     <th className="p-4 text-left font-semibold">Student</th>
-                     <th className="p-4 text-left font-semibold">Score</th>
-                     <th className="p-4 text-right font-semibold">Date</th>
-                   </tr>
-                 </thead>
-                 <tbody>
-                   {submissions.map((s, i) => (
-                     <tr key={i} className="border-b border-border hover:bg-muted/30">
-                       <td className="p-4 font-medium">{s.studentName}</td>
-                       <td className="p-4 font-bold text-primary">{s.score}</td>
-                       <td className="p-4 text-right text-xs text-muted-foreground">
-                         {new Date(s.submittedAt).toLocaleDateString()}
-                       </td>
-                     </tr>
-                   ))}
-                   {submissions.length === 0 && (
-                     <tr><td colSpan={3} className="p-8 text-center text-muted-foreground">No submissions found for this test.</td></tr>
-                   )}
-                 </tbody>
-               </table>
-             </div>
+          <CardContent className="h-[300px] flex justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={attendanceData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                  {attendanceData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>

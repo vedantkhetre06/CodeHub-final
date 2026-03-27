@@ -1,4 +1,3 @@
-
 "use client";
 
 import { usePathname, useRouter } from 'next/navigation';
@@ -20,7 +19,13 @@ import {
   BarChart3,
   ShieldAlert,
   Moon,
-  Sun
+  Sun,
+  MessageSquare,
+  Users2,
+  Trophy,
+  CalendarDays,
+  Bug,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -34,17 +39,26 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['student', 'teacher', 'admin'] },
   // Student items
+  { title: 'Practice (Editor)', href: '/dashboard/practice', icon: Code2, roles: ['student'] },
   { title: 'My Tests', href: '/dashboard/tests', icon: FileText, roles: ['student'] },
   { title: 'Assignments', href: '/dashboard/assignments', icon: BookOpen, roles: ['student'] },
-  { title: 'Resources', href: '/dashboard/resources', icon: Code2, roles: ['student'] },
+  { title: 'Collaborative Editor', href: '/dashboard/collaborative', icon: Users2, roles: ['student'] },
+  { title: 'Aptitude', href: '/dashboard/aptitude', icon: Trophy, roles: ['student'] },
+  { title: 'Chat', href: '/dashboard/chat', icon: MessageSquare, roles: ['student', 'teacher'] },
+  { title: 'Nearby Events', href: '/dashboard/events', icon: CalendarDays, roles: ['student', 'admin'] },
+  { title: 'Resources', href: '/dashboard/resources', icon: BookOpen, roles: ['student'] },
+  
   // Teacher items
-  { title: 'Manage Tests', href: '/dashboard/teacher/tests', icon: FileText, roles: ['teacher'] },
+  { title: 'Create Test', href: '/dashboard/teacher/tests/new', icon: FileText, roles: ['teacher'] },
+  { title: 'Report Analysis', href: '/dashboard/teacher/analytics', icon: BarChart3, roles: ['teacher'] },
   { title: 'Manage Assignments', href: '/dashboard/teacher/assignments', icon: BookOpen, roles: ['teacher'] },
-  { title: 'Performance', href: '/dashboard/teacher/analytics', icon: BarChart3, roles: ['teacher'] },
-  { title: 'Subjects', href: '/dashboard/teacher/subjects', icon: BookOpen, roles: ['teacher'] },
+  { title: 'Notes Management', href: '/dashboard/teacher/subjects', icon: BookOpen, roles: ['teacher'] },
+  
   // Admin items
-  { title: 'User Management', href: '/dashboard/admin/users', icon: Users, roles: ['admin'] },
+  { title: 'Issues & Bugs', href: '/dashboard/admin/issues', icon: Bug, roles: ['admin'] },
+  { title: 'Access Management', href: '/dashboard/admin/users', icon: Lock, roles: ['admin'] },
   { title: 'System Logs', href: '/dashboard/admin/logs', icon: ShieldAlert, roles: ['admin'] },
+  
   // Shared
   { title: 'Notifications', href: '/dashboard/notifications', icon: Bell, roles: ['student', 'teacher', 'admin'] },
   { title: 'Profile', href: '/dashboard/profile', icon: Settings, roles: ['student', 'teacher', 'admin'] },

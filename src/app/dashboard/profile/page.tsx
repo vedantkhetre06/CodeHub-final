@@ -1,32 +1,58 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { authStore } from '@/lib/store';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { User } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Github, Mail, Building, MapPin, Edit2, ShieldCheck, GraduationCap } from 'lucide-react';
+import { Github, Mail, Building, MapPin, Edit2, ShieldCheck, GraduationCap, Link2, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    setUser(authStore.getUser());
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        const docSnap = await getDoc(doc(db, "users", fbUser.uid));
+        if (docSnap.exists()) setUser(docSnap.data() as User);
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, "users", user.id), { ...user });
+      toast({ title: "Profile Updated", description: "Your changes have been saved to Firestore." });
+    } catch (err) {
+      toast({ title: "Update Failed", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
   if (!user) return null;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-headline font-bold">Your Profile</h2>
-        <Button variant="outline" className="gap-2">
-          <Edit2 size={16} /> Edit Profile
+        <h2 className="text-3xl font-headline font-bold">Account Settings</h2>
+        <Button variant="outline" className="gap-2" onClick={handleUpdate} disabled={saving}>
+          {saving ? <Loader2 className="animate-spin" /> : <Edit2 size={16} />} Save Changes
         </Button>
       </div>
 
@@ -42,71 +68,57 @@ export default function ProfilePage() {
               <p className="text-sm text-muted-foreground capitalize">{user.role}</p>
             </div>
             <div className="pt-4 border-t border-border space-y-2">
-               {user.github && (
-                 <a href={user.github} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 text-sm text-primary hover:underline">
-                   <Github size={16} /> GitHub Profile
-                 </a>
-               )}
+               <div className="flex flex-col gap-2">
+                 <div className="relative">
+                   <Github className="absolute left-2 top-2.5 w-4 h-4 text-muted-foreground" />
+                   <Input 
+                     className="pl-8 text-xs" 
+                     placeholder="GitHub URL" 
+                     value={user.github || ''} 
+                     onChange={(e) => setUser({...user, github: e.target.value})}
+                   />
+                 </div>
+                 <div className="relative">
+                   <Link2 className="absolute left-2 top-2.5 w-4 h-4 text-muted-foreground" />
+                   <Input 
+                     className="pl-8 text-xs" 
+                     placeholder="LeetCode URL" 
+                     value={user.leetcode || ''} 
+                     onChange={(e) => setUser({...user, leetcode: e.target.value})}
+                   />
+                 </div>
+               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="md:col-span-2 border-none shadow-sm">
           <CardHeader>
-            <CardTitle className="font-headline">Account Details</CardTitle>
-            <CardDescription>Manage your institutional information</CardDescription>
+            <CardTitle className="font-headline">Institutional Information</CardTitle>
+            <CardDescription>Your university record data</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Mail size={12} /> Email Address
-                </Label>
-                <p className="font-medium">{user.email}</p>
+              <div className="space-y-2">
+                <Label>Full Name</Label>
+                <Input value={user.name} onChange={(e) => setUser({...user, name: e.target.value})} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                  <ShieldCheck size={12} /> Role
-                </Label>
-                <p className="font-medium capitalize">{user.role}</p>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={user.email} disabled />
               </div>
-              {user.branch && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Building size={12} /> Branch / Department
-                  </Label>
-                  <p className="font-medium">{user.branch}</p>
-                </div>
+              {user.role === 'student' && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Branch</Label>
+                    <Input value={user.branch || ''} onChange={(e) => setUser({...user, branch: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Year</Label>
+                    <Input value={user.year || ''} onChange={(e) => setUser({...user, year: e.target.value})} />
+                  </div>
+                </>
               )}
-              {user.section && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <MapPin size={12} /> Section
-                  </Label>
-                  <p className="font-medium">{user.section}</p>
-                </div>
-              )}
-              {user.year && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <GraduationCap size={12} /> Year
-                  </Label>
-                  <p className="font-medium">{user.year} Year</p>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-6 border-t border-border">
-              <h4 className="font-headline font-semibold mb-4">Security</h4>
-              <div className="space-y-4">
-                 <div className="space-y-2">
-                   <Label>Current Password</Label>
-                   <Input type="password" placeholder="••••••••" />
-                 </div>
-                 <Button onClick={() => toast({ title: "Password update requested" })}>
-                   Change Password
-                 </Button>
-              </div>
             </div>
           </CardContent>
         </Card>

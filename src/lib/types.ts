@@ -6,6 +6,7 @@ export interface User {
   email: string;
   role: Role;
   github?: string;
+  leetcode?: string;
   branch?: string;
   section?: string;
   year?: string;
@@ -43,6 +44,7 @@ export interface Test {
   title: string;
   description: string;
   subject: string;
+  type: 'objective' | 'editor';
   timeLimit: number; // in minutes
   questions: Question[];
   createdBy: string; // teacher id
@@ -68,6 +70,7 @@ export interface Submission {
   score?: number;
   submittedAt: string;
   status: 'submitted' | 'not-submitted';
+  cheatingDetected?: boolean;
   feedback?: string;
 }
 
@@ -83,5 +86,14 @@ export interface Resource {
   type: 'pdf' | 'link';
   url: string;
   subject: string;
+  unit?: string;
   uploadedBy: string;
+}
+
+export interface Event {
+  id: string;
+  title: string;
+  date: string;
+  location: string;
+  description: string;
 }
