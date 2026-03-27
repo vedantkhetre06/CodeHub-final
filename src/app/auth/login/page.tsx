@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { auth, db } from '@/lib/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Role, User } from '@/lib/types';
@@ -17,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const router = useRouter();
+  const auth = useAuth();
+  const db = useFirestore();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const initialRole = (searchParams.get('role') as Role) || 'student';
@@ -34,7 +36,6 @@ export default function LoginPage() {
     
     try {
       if (isRegistering) {
-        // Register Flow
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const newUser: User = {
           id: userCredential.user.uid,
@@ -44,12 +45,10 @@ export default function LoginPage() {
           branch: role === 'student' ? 'Computer Science' : undefined,
           year: role === 'student' ? '1st' : undefined
         };
-        // Create profile in Firestore
         await setDoc(doc(db, "users", userCredential.user.uid), newUser);
         localStorage.setItem('codehub_user', JSON.stringify(newUser));
         toast({ title: "Account Created!", description: `Welcome to CodeHub, ${newUser.name}` });
       } else {
-        // Login Flow
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
         
@@ -58,7 +57,6 @@ export default function LoginPage() {
           localStorage.setItem('codehub_user', JSON.stringify(userData));
           toast({ title: "Welcome back!", description: `Logged in as ${userData.name}` });
         } else {
-          // Profile missing? Create one on the fly for old accounts
           const fallbackUser: User = {
             id: userCredential.user.uid,
             name: email.split('@')[0],
@@ -69,14 +67,15 @@ export default function LoginPage() {
           localStorage.setItem('codehub_user', JSON.stringify(fallbackUser));
         }
       }
-      
       router.push('/dashboard');
     } catch (error: any) {
       console.error(error);
-      let message = "Authentication failed. Please check your credentials.";
-      if (error.code === 'auth/email-already-in-use') message = "This email is already registered.";
-      if (error.code === 'auth/wrong-password') message = "Incorrect password.";
-      if (error.code === 'auth/user-not-found') message = "No account found with this email.";
+      let message = error.message || "Authentication failed.";
+      if (error.code === 'auth/invalid-api-key') {
+        message = "Firebase API Key is missing or invalid. Please check your .env file.";
+      } else if (error.code === 'auth/email-already-in-use') {
+        message = "This email is already registered.";
+      }
       
       toast({ 
         title: isRegistering ? "Registration Error" : "Login Error", 

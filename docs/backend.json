@@ -1,0 +1,51 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Information about students, teachers, and admins.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["student", "teacher", "admin"] },
+        "github": { "type": "string" },
+        "leetcode": { "type": "string" },
+        "branch": { "type": "string" },
+        "year": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "Test": {
+      "title": "Assessment",
+      "description": "A coding or objective test created by a teacher.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "subject": { "type": "string" },
+        "timeLimit": { "type": "number" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "#/backend/entities/User",
+      "description": "User profiles"
+    },
+    "/tests/{testId}": {
+      "schema": "#/backend/entities/Test",
+      "description": "Tests and assessments"
+    },
+    "/submissions/{submissionId}": {
+      "schema": "object",
+      "description": "Student test submissions"
+    }
+  }
+}
