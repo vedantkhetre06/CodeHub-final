@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Role } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { authStore } from '@/lib/store';
+import { useEffect, useState } from 'react';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -15,7 +16,9 @@ import {
   GraduationCap,
   Code2,
   BarChart3,
-  ShieldAlert
+  ShieldAlert,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -48,6 +51,27 @@ const NAV_ITEMS: NavItem[] = [
 export function SidebarNav({ role }: { role: Role }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    const initialTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    setTheme(initialTheme);
+    if (initialTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    localStorage.setItem('theme', nextTheme);
+    if (nextTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   const handleLogout = () => {
     authStore.logout();
@@ -65,9 +89,9 @@ export function SidebarNav({ role }: { role: Role }) {
         </div>
       </div>
       
-      <nav className="flex-1 px-4 py-4 space-y-1">
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
         {filteredItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
           return (
             <Button
               key={item.href}
@@ -87,7 +111,15 @@ export function SidebarNav({ role }: { role: Role }) {
         })}
       </nav>
 
-      <div className="p-4 border-t border-white/10">
+      <div className="p-4 border-t border-white/10 space-y-2">
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start gap-3 h-11 font-medium text-white/70 hover:text-white hover:bg-white/10"
+          onClick={toggleTheme}
+        >
+          {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+        </Button>
         <Button 
           variant="ghost" 
           className="w-full justify-start gap-3 h-11 font-medium text-white/70 hover:text-white hover:bg-white/10"
