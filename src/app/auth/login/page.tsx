@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { GraduationCap, ArrowLeft, Loader2 } from "lucide-react";
+import { GraduationCap, ArrowLeft, Loader2, UserPlus, LogIn } from "lucide-react";
 import Link from 'next/link';
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,8 +21,10 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const initialRole = (searchParams.get('role') as Role) || 'student';
   
+  const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [role, setRole] = useState<Role>(initialRole);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,42 +33,54 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      // For a demo/prototype, we'll try to login first, if it fails, we auto-create 
-      // This makes testing the "Full Backend" easier for you immediately.
-      let userCredential;
-      try {
-        userCredential = await signInWithEmailAndPassword(auth, email, password);
-      } catch (err: any) {
-        if (err.code === 'auth/user-not-found') {
-          userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          // Create profile in Firestore
-          const newUser: User = {
+      if (isRegistering) {
+        // Register Flow
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const newUser: User = {
+          id: userCredential.user.uid,
+          name: name || email.split('@')[0],
+          email: email,
+          role: role,
+          branch: role === 'student' ? 'Computer Science' : undefined,
+          year: role === 'student' ? '1st' : undefined
+        };
+        // Create profile in Firestore
+        await setDoc(doc(db, "users", userCredential.user.uid), newUser);
+        localStorage.setItem('codehub_user', JSON.stringify(newUser));
+        toast({ title: "Account Created!", description: `Welcome to CodeHub, ${newUser.name}` });
+      } else {
+        // Login Flow
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as User;
+          localStorage.setItem('codehub_user', JSON.stringify(userData));
+          toast({ title: "Welcome back!", description: `Logged in as ${userData.name}` });
+        } else {
+          // Profile missing? Create one on the fly for old accounts
+          const fallbackUser: User = {
             id: userCredential.user.uid,
             name: email.split('@')[0],
             email: email,
-            role: role,
-            branch: role === 'student' ? 'Computer Science' : undefined,
-            year: role === 'student' ? '3rd' : undefined
+            role: role
           };
-          await setDoc(doc(db, "users", userCredential.user.uid), newUser);
-        } else {
-          throw err;
+          await setDoc(doc(db, "users", userCredential.user.uid), fallbackUser);
+          localStorage.setItem('codehub_user', JSON.stringify(fallbackUser));
         }
       }
-
-      const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data() as User;
-        // Check if role matches if you want strict role selection, 
-        // but for now let's just proceed
-        localStorage.setItem('codehub_user', JSON.stringify(userData));
-        toast({ title: "Welcome back!", description: `Logged in as ${userData.name}` });
-        router.push('/dashboard');
-      }
+      
+      router.push('/dashboard');
     } catch (error: any) {
+      console.error(error);
+      let message = "Authentication failed. Please check your credentials.";
+      if (error.code === 'auth/email-already-in-use') message = "This email is already registered.";
+      if (error.code === 'auth/wrong-password') message = "Incorrect password.";
+      if (error.code === 'auth/user-not-found') message = "No account found with this email.";
+      
       toast({ 
-        title: "Authentication Error", 
-        description: error.message,
+        title: isRegistering ? "Registration Error" : "Login Error", 
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -84,13 +98,30 @@ export default function LoginPage() {
                 CodeHub
              </Link>
           </div>
-          <CardTitle className="text-2xl font-headline font-bold">Secure Access</CardTitle>
+          <CardTitle className="text-2xl font-headline font-bold">
+            {isRegistering ? "Create Account" : "Secure Login"}
+          </CardTitle>
           <CardDescription>
-            Enter your credentials to access your {role} dashboard
+            {isRegistering 
+              ? `Join as a ${role} to get started` 
+              : `Enter your credentials to access your ${role} dashboard`}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
+            {isRegistering && (
+              <div className="space-y-2 animate-in fade-in duration-300">
+                <Label htmlFor="name">Full Name</Label>
+                <Input 
+                  id="name" 
+                  placeholder="John Doe" 
+                  required 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email address</Label>
               <Input 
@@ -104,41 +135,62 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-              </div>
+              <Label htmlFor="password">Password</Label>
               <Input 
                 id="password" 
                 type="password" 
+                placeholder="••••••••"
                 required 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={isLoading}>
-              {isLoading ? <Loader2 className="animate-spin" /> : "Sign In / Register"}
-            </Button>
+
+            <div className="pt-2">
+              <Button type="submit" className="w-full h-11 text-base font-semibold gap-2" disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="animate-spin" />
+                ) : isRegistering ? (
+                  <><UserPlus size={18} /> Register Now</>
+                ) : (
+                  <><LogIn size={18} /> Sign In</>
+                )}
+              </Button>
+            </div>
           </form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
+          <div className="text-center w-full">
+            <button 
+              type="button"
+              className="text-sm text-primary hover:underline font-medium"
+              onClick={() => setIsRegistering(!isRegistering)}
+            >
+              {isRegistering 
+                ? "Already have an account? Sign In" 
+                : "Don't have an account? Create one"}
+            </button>
+          </div>
+
           <div className="relative w-full">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-card px-2 text-muted-foreground">
-                Select your Role
+                Account Type
               </span>
             </div>
           </div>
+          
           <div className="flex gap-2 justify-center">
             {(['student', 'teacher', 'admin'] as Role[]).map((r) => (
               <Button 
                 key={r} 
                 variant={role === r ? 'default' : 'outline'} 
                 size="sm"
-                className="capitalize"
+                className="capitalize h-8 text-xs"
                 onClick={() => setRole(r)}
                 disabled={isLoading}
               >
@@ -146,8 +198,9 @@ export default function LoginPage() {
               </Button>
             ))}
           </div>
-          <Link href="/" className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1 transition-colors">
-            <ArrowLeft size={14} /> Back to selection
+          
+          <Link href="/" className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1 transition-colors mx-auto">
+            <ArrowLeft size={14} /> Back to home
           </Link>
         </CardFooter>
       </Card>
