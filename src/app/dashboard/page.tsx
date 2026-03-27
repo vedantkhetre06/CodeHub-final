@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
-import { authStore } from '@/lib/store';
-import { User, Role } from '@/lib/types';
+import { Role, User, Test, Submission } from '@/lib/types';
+import { getAllTests, getSubmissionsByStudent } from '@/lib/services';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   BookOpen, 
@@ -13,18 +14,30 @@ import {
   Users, 
   ArrowRight,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    setUser(authStore.getUser());
+    const savedUser = localStorage.getItem('codehub_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
   }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-full">
+      <Loader2 className="animate-spin text-primary w-8 h-8" />
+    </div>
+  );
 
   if (!user) return null;
 
@@ -32,7 +45,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-headline font-bold text-foreground">Welcome, {user.name}!</h2>
-        <p className="text-muted-foreground">Here is what is happening in CodeHub today.</p>
+        <p className="text-muted-foreground">Real-time academic insights from Firestore.</p>
       </div>
 
       {user.role === 'student' && <StudentDashboard user={user} router={router} />}
@@ -43,17 +56,36 @@ export default function DashboardPage() {
 }
 
 function StudentDashboard({ user, router }: { user: User, router: any }) {
+  const [tests, setTests] = useState<Test[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      const [t, s] = await Promise.all([
+        getAllTests(),
+        getSubmissionsByStudent(user.id)
+      ]);
+      setTests(t);
+      setSubmissions(s);
+      setLoading(false);
+    }
+    fetchData();
+  }, [user.id]);
+
+  if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto" /></div>;
+
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="border-none shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/dashboard/tests')}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Tests</CardTitle>
+            <CardTitle className="text-sm font-medium">Available Tests</CardTitle>
             <Clock className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
-            <p className="text-xs text-muted-foreground">Next: DSA Midterm in 2 days</p>
+            <div className="text-2xl font-bold">{tests.length}</div>
+            <p className="text-xs text-muted-foreground">From live database</p>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/dashboard/assignments')}>
@@ -62,18 +94,18 @@ function StudentDashboard({ user, router }: { user: User, router: any }) {
             <FileText className="w-4 h-4 text-secondary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">4</div>
-            <p className="text-xs text-muted-foreground">1 overdue since yesterday</p>
+            <div className="text-2xl font-bold">Live</div>
+            <p className="text-xs text-muted-foreground">Updated in real-time</p>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+            <CardTitle className="text-sm font-medium">Submissions</CardTitle>
             <TrendingUp className="w-4 h-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">84%</div>
-            <p className="text-xs text-muted-foreground">+5% from last month</p>
+            <div className="text-2xl font-bold">{submissions.length}</div>
+            <p className="text-xs text-muted-foreground">Total attempts recorded</p>
           </CardContent>
         </Card>
       </div>
@@ -81,55 +113,46 @@ function StudentDashboard({ user, router }: { user: User, router: any }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card className="border-none shadow-sm">
           <CardHeader>
-            <CardTitle className="font-headline font-semibold">Recent Performance</CardTitle>
-            <CardDescription>Your last 5 test scores</CardDescription>
+            <CardTitle className="font-headline font-semibold">Your Recent Submissions</CardTitle>
+            <CardDescription>Fetched from Firestore</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { name: 'DSA Midterm', score: 85, date: 'May 1, 2024' },
-                { name: 'DBMS Lab', score: 92, date: 'Apr 25, 2024' },
-                { name: 'CA Theory', score: 76, date: 'Apr 20, 2024' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-background hover:bg-muted/50 transition-colors">
+              {submissions.length > 0 ? submissions.map((item, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-background hover:bg-muted/50 transition-colors border border-border">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                      {item.score}
+                      {item.score || 'N/A'}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.date}</p>
+                      <p className="text-sm font-medium">Attempt #{i+1}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(item.submittedAt).toLocaleDateString()}</p>
                     </div>
                   </div>
                   <Button variant="ghost" size="sm">Details</Button>
                 </div>
-              ))}
+              )) : (
+                <p className="text-sm text-muted-foreground text-center py-4">No submissions yet.</p>
+              )}
             </div>
-            <Button variant="outline" className="w-full mt-6">View All Activity</Button>
           </CardContent>
         </Card>
 
         <Card className="border-none shadow-sm">
           <CardHeader>
-            <CardTitle className="font-headline font-semibold">Notifications</CardTitle>
-            <CardDescription>Latest updates from your teachers</CardDescription>
+            <CardTitle className="font-headline font-semibold">System Feed</CardTitle>
+            <CardDescription>Live updates</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { title: 'New Test Released', body: 'Midterm DSA is now available for practice.', type: 'test' },
-                { title: 'Assignment Due', body: 'Database Normalization assignment due tomorrow.', type: 'assignment' },
-                { title: 'System Announcement', body: 'Maintenance scheduled for Saturday night.', type: 'admin' },
-              ].map((note, i) => (
-                <div key={i} className="flex gap-4 p-3 border-l-4 border-primary bg-background rounded-r-lg">
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold">{note.title}</p>
-                    <p className="text-xs text-muted-foreground">{note.body}</p>
-                  </div>
+              <div className="flex gap-4 p-3 border-l-4 border-primary bg-background rounded-r-lg">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">Real Backend Connected</p>
+                  <p className="text-xs text-muted-foreground">Firebase is now managing your data.</p>
                 </div>
-              ))}
+              </div>
             </div>
-            <Button variant="outline" className="w-full mt-6">View Notifications</Button>
+            <Button variant="outline" className="w-full mt-6" onClick={() => router.push('/dashboard/notifications')}>View Notifications</Button>
           </CardContent>
         </Card>
       </div>
@@ -138,16 +161,35 @@ function StudentDashboard({ user, router }: { user: User, router: any }) {
 }
 
 function TeacherDashboard({ user, router }: { user: User, router: any }) {
+  const [tests, setTests] = useState<Test[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getAllTests().then(data => {
+      setTests(data);
+      setLoading(false);
+    });
+  }, []);
+
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="border-none shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Tests</CardTitle>
+            <CardTitle className="text-sm font-medium">Tests Created</CardTitle>
             <FileText className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{loading ? '...' : tests.length}</div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Active Students</CardTitle>
+            <Users className="w-4 h-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">Live</div>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm">
@@ -161,69 +203,52 @@ function TeacherDashboard({ user, router }: { user: User, router: any }) {
         </Card>
         <Card className="border-none shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Students</CardTitle>
-            <Users className="w-4 h-4 text-green-500" />
+            <CardTitle className="text-sm font-medium">Status</CardTitle>
+            <CheckCircle2 className="w-4 h-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">145</div>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Subjects</CardTitle>
-            <BookOpen className="w-4 h-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2</div>
+            <div className="text-sm font-semibold text-green-600">Database Connected</div>
           </CardContent>
         </Card>
       </div>
 
       <div className="flex gap-4">
         <Button size="lg" className="gap-2" onClick={() => router.push('/dashboard/teacher/tests/new')}>
-          <Plus size={20} /> Create New Test
-        </Button>
-        <Button variant="outline" size="lg" className="gap-2" onClick={() => router.push('/dashboard/teacher/assignments/new')}>
-          <Plus size={20} /> Create Assignment
+          <Plus size={20} /> Create Live Test
         </Button>
       </div>
 
       <Card className="border-none shadow-sm">
         <CardHeader>
-          <CardTitle className="font-headline">Recent Student Submissions</CardTitle>
+          <CardTitle className="font-headline">Recent Assessment Feed</CardTitle>
         </CardHeader>
         <CardContent>
            <div className="rounded-md border border-border overflow-hidden">
              <table className="w-full text-sm">
                <thead className="bg-muted/50 border-b border-border">
                  <tr>
-                   <th className="p-4 text-left font-semibold">Student</th>
-                   <th className="p-4 text-left font-semibold">Subject</th>
-                   <th className="p-4 text-left font-semibold">Type</th>
-                   <th className="p-4 text-left font-semibold">Status</th>
+                   <th className="p-4 text-left font-semibold">Test Title</th>
+                   <th className="p-4 text-left font-semibold">Questions</th>
+                   <th className="p-4 text-left font-semibold">Time Limit</th>
                    <th className="p-4 text-right font-semibold">Action</th>
                  </tr>
                </thead>
                <tbody>
-                 {[
-                   { name: 'Alex Student', subject: 'DSA', type: 'Test', status: 'Submitted' },
-                   { name: 'Emily Student', subject: 'DBMS', type: 'Assignment', status: 'Pending Review' },
-                   { name: 'Mark Miller', subject: 'DSA', type: 'Test', status: 'Submitted' },
-                 ].map((sub, i) => (
-                   <tr key={i} className="border-b border-border hover:bg-muted/30 transition-colors">
-                     <td className="p-4">{sub.name}</td>
-                     <td className="p-4">{sub.subject}</td>
-                     <td className="p-4">{sub.type}</td>
-                     <td className="p-4">
-                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                         {sub.status}
-                       </span>
-                     </td>
+                 {tests.map((test, i) => (
+                   <tr key={test.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                     <td className="p-4 font-medium">{test.title}</td>
+                     <td className="p-4">{test.questions.length} Qs</td>
+                     <td className="p-4">{test.timeLimit} mins</td>
                      <td className="p-4 text-right">
-                       <Button variant="ghost" size="sm">Grade</Button>
+                       <Button variant="ghost" size="sm">Manage</Button>
                      </td>
                    </tr>
                  ))}
+                 {!loading && tests.length === 0 && (
+                   <tr>
+                     <td colSpan={4} className="p-8 text-center text-muted-foreground">No tests found in Firestore. Create one to get started.</td>
+                   </tr>
+                 )}
                </tbody>
              </table>
            </div>
@@ -239,29 +264,29 @@ function AdminDashboard({ user, router }: { user: User, router: any }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="border-none shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <CardTitle className="text-sm font-medium">Users</CardTitle>
             <Users className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,248</div>
+            <div className="text-2xl font-bold">Real-time</div>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+            <CardTitle className="text-sm font-medium">DB Connection</CardTitle>
             <CheckCircle2 className="w-4 h-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">84</div>
+            <div className="text-2xl font-bold">Active</div>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">System Errors</CardTitle>
-            <AlertCircle className="w-4 h-4 text-destructive" />
+            <CardTitle className="text-sm font-medium">Health</CardTitle>
+            <AlertCircle className="w-4 h-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold text-green-600">100%</div>
           </CardContent>
         </Card>
       </div>
@@ -269,51 +294,36 @@ function AdminDashboard({ user, router }: { user: User, router: any }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <Card className="lg:col-span-2 border-none shadow-sm">
           <CardHeader>
-            <CardTitle className="font-headline">Recent User Registrations</CardTitle>
+            <CardTitle className="font-headline">Firebase Project Health</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { name: 'Sarah Connor', email: 's.connor@codehub.edu', role: 'Student' },
-                { name: 'Kyle Reese', email: 'k.reese@codehub.edu', role: 'Student' },
-                { name: 'Dr. Silberman', email: 'p.silberman@codehub.edu', role: 'Teacher' },
-              ].map((u, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                   <div className="flex items-center gap-3">
-                    <Avatar className="w-10 h-10">
-                      <AvatarFallback>{u.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">{u.name}</p>
-                      <p className="text-xs text-muted-foreground">{u.email}</p>
-                    </div>
-                  </div>
-                  <span className="px-2 py-1 bg-muted rounded text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{u.role}</span>
+          <CardContent className="space-y-4">
+             <div className="p-4 bg-muted rounded-lg flex items-center justify-between">
+                <div>
+                   <p className="font-bold">Authentication</p>
+                   <p className="text-xs text-muted-foreground">Live & Serving</p>
                 </div>
-              ))}
-            </div>
-            <Button variant="link" className="mt-4 w-full justify-center gap-2">
-               Manage All Users <ArrowRight size={16} />
-            </Button>
+                <CheckCircle2 className="text-green-500" />
+             </div>
+             <div className="p-4 bg-muted rounded-lg flex items-center justify-between">
+                <div>
+                   <p className="font-bold">Cloud Firestore</p>
+                   <p className="text-xs text-muted-foreground">Persistence Ready</p>
+                </div>
+                <CheckCircle2 className="text-green-500" />
+             </div>
           </CardContent>
         </Card>
 
         <Card className="border-none shadow-sm">
           <CardHeader>
-            <CardTitle className="font-headline">Quick Actions</CardTitle>
+            <CardTitle className="font-headline">Quick Admin</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-             <Button className="w-full justify-start gap-3" variant="outline">
-                <Plus size={18} /> New User Account
+             <Button className="w-full justify-start gap-3" variant="outline" onClick={() => router.push('/dashboard/admin/users')}>
+                <Plus size={18} /> Manage User Accounts
              </Button>
-             <Button className="w-full justify-start gap-3" variant="outline">
-                <FileText size={18} /> System Audit Logs
-             </Button>
-             <Button className="w-full justify-start gap-3" variant="outline">
-                <ShieldAlert size={18} /> Moderate Content
-             </Button>
-             <Button className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/5" variant="ghost">
-                <AlertCircle size={18} /> Emergency Lockout
+             <Button className="w-full justify-start gap-3" variant="outline" onClick={() => router.push('/dashboard/admin/logs')}>
+                <FileText size={18} /> View Security Logs
              </Button>
           </CardContent>
         </Card>

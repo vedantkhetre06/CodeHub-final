@@ -1,9 +1,11 @@
+
 "use client";
 
 import { usePathname, useRouter } from 'next/navigation';
 import { Role } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { authStore } from '@/lib/store';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import { 
   LayoutDashboard, 
@@ -73,8 +75,9 @@ export function SidebarNav({ role }: { role: Role }) {
     }
   };
 
-  const handleLogout = () => {
-    authStore.logout();
+  const handleLogout = async () => {
+    await signOut(auth);
+    localStorage.removeItem('codehub_user');
     router.push('/');
   };
 

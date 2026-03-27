@@ -1,8 +1,11 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authStore } from '@/lib/store';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import { User } from '@/lib/types';
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { GraduationCap, Menu, Bell, User as UserIcon } from 'lucide-react';
@@ -16,22 +19,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const u = authStore.getUser();
-    if (!u) {
-      router.push('/auth/login');
-    } else {
-      setUser(u);
-    }
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Fetch additional profile data from Firestore
+        const docRef = doc(db, "users", firebaseUser.uid);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          setUser(docSnap.data() as User);
+        } else {
+          // Fallback if profile doesn't exist yet
+          const fallbackUser: User = {
+            id: firebaseUser.uid,
+            name: firebaseUser.email?.split('@')[0] || "User",
+            email: firebaseUser.email || "",
+            role: 'student'
+          };
+          setUser(fallbackUser);
+        }
+      } else {
+        router.push('/auth/login');
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [router]);
 
-  if (loading || !user) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
+
+  if (!user) return null;
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -56,7 +79,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </SheetContent>
             </Sheet>
             <h1 className="font-headline font-semibold text-lg hidden sm:block">
-              {user.role.charAt(0).toUpperCase() + user.role.slice(1)} Dashboard
+              {user.role.charAt(0).toUpperCase() + user.role.slice(1)} Portal
             </h1>
           </div>
 
