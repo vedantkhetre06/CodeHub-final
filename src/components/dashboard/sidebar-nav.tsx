@@ -1,4 +1,3 @@
-
 "use client";
 
 import { usePathname, useRouter } from 'next/navigation';
@@ -11,7 +10,7 @@ import {
   BookOpen, 
   LogOut, 
   Bell, 
-  GraduationCap,
+  Rocket,
   Code2,
   BarChart3,
   ShieldAlert,
@@ -23,7 +22,8 @@ import {
   CalendarDays,
   Bug,
   Lock,
-  Settings
+  Settings,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -37,29 +37,29 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['student', 'teacher', 'admin'] },
   // Student items
-  { title: 'Practice (Editor)', href: '/dashboard/practice', icon: Code2, roles: ['student'] },
-  { title: 'My Tests', href: '/dashboard/tests', icon: FileText, roles: ['student'] },
-  { title: 'Assignments', href: '/dashboard/assignments', icon: BookOpen, roles: ['student'] },
-  { title: 'Collaborative Editor', href: '/dashboard/collaborative', icon: Users2, roles: ['student'] },
-  { title: 'Aptitude', href: '/dashboard/aptitude', icon: Trophy, roles: ['student'] },
-  { title: 'Chat', href: '/dashboard/chat', icon: MessageSquare, roles: ['student', 'teacher'] },
-  { title: 'Nearby Events', href: '/dashboard/events', icon: CalendarDays, roles: ['student', 'admin'] },
+  { title: 'Practice Lab', href: '/dashboard/practice', icon: Code2, roles: ['student'] },
+  { title: 'My Assessments', href: '/dashboard/tests', icon: FileText, roles: ['student'] },
+  { title: 'Coursework', href: '/dashboard/assignments', icon: BookOpen, roles: ['student'] },
+  { title: 'Collaboration', href: '/dashboard/collaborative', icon: Users2, roles: ['student'] },
+  { title: 'Aptitude Prep', href: '/dashboard/aptitude', icon: Trophy, roles: ['student'] },
+  { title: 'Communications', href: '/dashboard/chat', icon: MessageSquare, roles: ['student', 'teacher'] },
+  { title: 'Campus Events', href: '/dashboard/events', icon: CalendarDays, roles: ['student', 'admin'] },
   { title: 'Resources', href: '/dashboard/resources', icon: BookOpen, roles: ['student'] },
   
   // Teacher items
-  { title: 'Create Test', href: '/dashboard/teacher/tests/new', icon: FileText, roles: ['teacher'] },
-  { title: 'Report Analysis', href: '/dashboard/teacher/analytics', icon: BarChart3, roles: ['teacher'] },
-  { title: 'Manage Assignments', href: '/dashboard/teacher/assignments', icon: BookOpen, roles: ['teacher'] },
-  { title: 'Notes Management', href: '/dashboard/teacher/subjects', icon: BookOpen, roles: ['teacher'] },
+  { title: 'Test Builder', href: '/dashboard/teacher/tests/new', icon: FileText, roles: ['teacher'] },
+  { title: 'Insights', href: '/dashboard/teacher/analytics', icon: BarChart3, roles: ['teacher'] },
+  { title: 'Gradebook', href: '/dashboard/teacher/assignments', icon: BookOpen, roles: ['teacher'] },
+  { title: 'Curriculum', href: '/dashboard/teacher/subjects', icon: BookOpen, roles: ['teacher'] },
   
   // Admin items
-  { title: 'Issues & Bugs', href: '/dashboard/admin/issues', icon: Bug, roles: ['admin'] },
-  { title: 'Access Management', href: '/dashboard/admin/users', icon: Lock, roles: ['admin'] },
-  { title: 'System Logs', href: '/dashboard/admin/logs', icon: ShieldAlert, roles: ['admin'] },
+  { title: 'Incidents', href: '/dashboard/admin/issues', icon: Bug, roles: ['admin'] },
+  { title: 'Users', href: '/dashboard/admin/users', icon: Lock, roles: ['admin'] },
+  { title: 'Audit Logs', href: '/dashboard/admin/logs', icon: ShieldAlert, roles: ['admin'] },
   
   // Shared
   { title: 'Notifications', href: '/dashboard/notifications', icon: Bell, roles: ['student', 'teacher', 'admin'] },
-  { title: 'Profile', href: '/dashboard/profile', icon: Settings, roles: ['student', 'teacher', 'admin'] },
+  { title: 'Preferences', href: '/dashboard/profile', icon: Settings, roles: ['student', 'teacher', 'admin'] },
 ];
 
 export function SidebarNav({ role }: { role: Role }) {
@@ -88,7 +88,6 @@ export function SidebarNav({ role }: { role: Role }) {
   };
 
   const handleLogout = () => {
-    // Demo Mode: Just clear localStorage and redirect
     localStorage.removeItem('codehub_user');
     router.push('/');
   };
@@ -96,52 +95,54 @@ export function SidebarNav({ role }: { role: Role }) {
   const filteredItems = NAV_ITEMS.filter(item => item.roles.includes(role));
 
   return (
-    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
-      <div className="p-6">
-        <div className="flex items-center gap-2 font-headline font-bold text-xl text-sidebar-primary">
-          <GraduationCap className="w-8 h-8" />
+    <div className="flex flex-col h-full bg-sidebar border-r border-white/5">
+      <div className="p-8">
+        <div className="flex items-center gap-3 font-headline font-bold text-2xl text-white">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
+            <Rocket className="w-6 h-6 fill-white" />
+          </div>
           <span>CodeHub</span>
         </div>
       </div>
       
-      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto">
         {filteredItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
           return (
-            <Button
+            <button
               key={item.href}
-              variant="ghost"
               className={cn(
-                "w-full justify-start gap-3 h-11 font-medium transition-all duration-200",
+                "group w-full flex items-center gap-3 px-4 h-12 rounded-2xl text-sm font-bold transition-all duration-300 relative",
                 isActive 
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" 
-                  : "hover:bg-white/10 text-sidebar-foreground/80 hover:text-white"
+                  ? "bg-primary text-white shadow-lg shadow-primary/20" 
+                  : "text-sidebar-foreground/60 hover:text-white hover:bg-white/5"
               )}
               onClick={() => router.push(item.href)}
             >
-              <item.icon className="w-5 h-5" />
-              {item.title}
-            </Button>
+              <item.icon className={cn("w-5 h-5", isActive ? "text-white" : "text-sidebar-foreground/40 group-hover:text-white")} />
+              <span className="flex-1 text-left">{item.title}</span>
+              {isActive && <ChevronRight className="w-4 h-4 animate-in fade-in slide-in-from-left-2" />}
+            </button>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-white/10 space-y-2">
+      <div className="p-6 border-t border-white/5 space-y-3">
         <Button 
           variant="ghost" 
-          className="w-full justify-start gap-3 h-11 font-medium text-white/70 hover:text-white hover:bg-white/10"
+          className="w-full justify-start gap-3 h-12 rounded-2xl font-bold text-sidebar-foreground/60 hover:text-white hover:bg-white/5"
           onClick={toggleTheme}
         >
           {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-          {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+          {theme === 'light' ? 'Dark Appearance' : 'Light Appearance'}
         </Button>
         <Button 
           variant="ghost" 
-          className="w-full justify-start gap-3 h-11 font-medium text-white/70 hover:text-white hover:bg-white/10"
+          className="w-full justify-start gap-3 h-12 rounded-2xl font-bold text-destructive hover:text-destructive hover:bg-destructive/10"
           onClick={handleLogout}
         >
           <LogOut className="w-5 h-5" />
-          Logout
+          Sign Out
         </Button>
       </div>
     </div>
