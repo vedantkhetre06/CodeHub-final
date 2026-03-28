@@ -1,20 +1,5 @@
-
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "placeholder-key",
-  authDomain: `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
-  messagingSenderId: "placeholder-sender",
-  appId: "placeholder-app-id"
-};
-
-// Initialize Firebase
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
+export { initializeFirebase } from "@/firebase";
+import { initializeFirebase } from "@/firebase";
+ 
+const { app, auth, db } = initializeFirebase();
 export { app, auth, db };

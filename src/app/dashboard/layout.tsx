@@ -1,34 +1,69 @@
 "use client";
-
+ 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@/lib/types';
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
-import { Menu, Bell, Search, Command } from 'lucide-react';
+import { Menu, Bell, Search, Command, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from '@/components/ui/input';
-
+import { initializeFirebase } from '@/firebase';
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+ 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-
+ 
   useEffect(() => {
-    const savedUser = localStorage.getItem('codehub_user');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (err) {
+    const { app } = initializeFirebase();
+    const auth = getAuth(app);
+ 
+    // Listen for Firebase auth state changes as the source of truth
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in — load their profile from localStorage cache
+        const savedUser = localStorage.getItem('codehub_user');
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser) as User;
+            // Verify the cached profile belongs to the signed-in user
+            if (parsed.id === firebaseUser.uid) {
+              setUser(parsed);
+            } else {
+              // Stale cache from a different user — clear it
+              localStorage.removeItem('codehub_user');
+              router.push('/auth/login');
+            }
+          } catch {
+            localStorage.removeItem('codehub_user');
+            router.push('/auth/login');
+          }
+        } else {
+          // Signed in with Firebase but no local profile — redirect to login to rebuild
+          router.push('/auth/login');
+        }
+      } else {
+        // Not signed in — clear any stale data and redirect
+        localStorage.removeItem('codehub_user');
         router.push('/auth/login');
       }
-    } else {
-      router.push('/auth/login');
-    }
-    setLoading(false);
+      setLoading(false);
+    });
+ 
+    return () => unsubscribe();
   }, [router]);
-
+ 
+  const handleSignOut = async () => {
+    const { app } = initializeFirebase();
+    const auth = getAuth(app);
+    await signOut(auth);
+    localStorage.removeItem('codehub_user');
+    router.push('/auth/login');
+  };
+ 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -36,16 +71,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     );
   }
-
+ 
   if (!user) return null;
-
+ 
   return (
     <div className="flex h-screen bg-background overflow-hidden selection:bg-primary/20">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-72 flex-col fixed inset-y-0 z-50">
         <SidebarNav role={user.role} />
       </aside>
-
+ 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col md:pl-72 h-full overflow-hidden">
         {/* Header */}
@@ -73,7 +108,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             </div>
           </div>
-
+ 
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="relative h-11 w-11 rounded-2xl bg-muted/50">
               <Bell className="w-5 h-5 text-muted-foreground" />
@@ -85,15 +120,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <p className="text-sm font-bold leading-none">{user.name}</p>
                 <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground mt-1.5">{user.role}</p>
               </div>
-              <Avatar className="w-11 h-11 border-2 border-primary/20 shadow-lg cursor-pointer hover:border-primary transition-colors" onClick={() => router.push('/dashboard/profile')}>
+              <Avatar
+                className="w-11 h-11 border-2 border-primary/20 shadow-lg cursor-pointer hover:border-primary transition-colors"
+                onClick={() => router.push('/dashboard/profile')}
+              >
                 <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                  {user.name.charAt(0)}
+                  {user.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 rounded-2xl bg-muted/50"
+                onClick={handleSignOut}
+                title="Sign out"
+              >
+                <LogOut className="w-5 h-5 text-muted-foreground" />
+              </Button>
             </div>
           </div>
         </header>
-
+ 
         {/* Dashboard Content */}
         <main className="flex-1 overflow-y-auto p-8 lg:p-12">
           <div className="max-w-7xl mx-auto animate-in fade-in duration-700">
